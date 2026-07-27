@@ -1,0 +1,146 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id               String            @id @default(uuid()) @db.Uuid
+  email            String            @unique
+  fullName         String?           @map("full_name")
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  lastLogin        DateTime?         @map("last_login") @db.Timestamptz
+  isActive         Boolean           @default(true) @map("is_active")
+  preferences      UserPreference?
+  subscriptions    Subscription[]
+  emailQueue       EmailQueue[]
+  analyticsEvents  AnalyticsEvent[]
+
+  @@map("users")
+}
+
+model UserPreference {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @unique @map("user_id") @db.Uuid
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  digestFrequency String   @default("daily") @map("digest_frequency") // 'daily', 'twice_daily', 'weekly'
+  digestTime      String   @default("08:00:00") @map("digest_time")
+  timezone        String   @default("UTC")
+  summaryLength   String   @default("medium") @map("summary_length") // 'brief', 'medium', 'detailed'
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("user_preferences")
+}
+
+model Subscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  domain    String // 'finance', 'technology', 'health', 'politics', 'sports'
+  subTopics String[] @default([]) @map("sub_topics")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([userId, domain])
+  @@map("subscriptions")
+}
+
+model NewsSource {
+  id                    String       @id @default(uuid()) @db.Uuid
+  name                  String
+  domain                String // 'finance', 'technology', etc.
+  sourceType            String       @map("source_type") // 'rss', 'scrape'
+  url                   String       @unique
+  selectorConfig        Json?        @map("selector_config") // CSS selectors for scraping
+  fetchFrequencyMinutes Int          @default(60) @map("fetch_frequency_minutes")
+  isActive              Boolean      @default(true) @map("is_active")
+  lastFetchedAt         DateTime?    @map("last_fetched_at") @db.Timestamptz
+  errorCount            Int          @default(0) @map("error_count")
+  createdAt             DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  rawArticles           RawArticle[]
+
+  @@map("news_sources")
+}
+
+model RawArticle {
+  id           String      @id @default(uuid()) @db.Uuid
+  sourceId     String?     @map("source_id") @db.Uuid
+  source       NewsSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  title        String
+  url          String      @unique
+  rawContent   String?     @map("raw_content") @db.Text
+  publishedAt  DateTime?   @map("published_at") @db.Timestamptz
+  fetchedAt    DateTime    @default(now()) @map("fetched_at") @db.Timestamptz
+  isProcessed  Boolean     @default(false) @map("is_processed")
+  contentHash  String?     @unique @map("content_hash")
+  articles     Article[]
+
+  @@index([isProcessed])
+  @@map("raw_articles")
+}
+
+model Article {
+  id           String            @id @default(uuid()) @db.Uuid
+  rawArticleId String?           @map("raw_article_id") @db.Uuid
+  rawArticle   RawArticle?       @relation(fields: [rawArticleId], references: [id], onDelete: SetNull)
+  title        String
+  url          String            @unique
+  domain       String
+  subTopics    String[]          @default([]) @map("sub_topics")
+  sentiment    Decimal?          @db.Decimal(3, 2)
+  keywords     String[]          @default([])
+  imageUrl     String?           @map("image_url")
+  publishedAt  DateTime?         @map("published_at") @db.Timestamptz
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  summaries    ArticleSummary?
+
+  @@index([domain])
+  @@index([publishedAt(sort: Desc)])
+  @@map("articles")
+}
+
+model ArticleSummary {
+  id              String   @id @default(uuid()) @db.Uuid
+  articleId       String   @unique @map("article_id") @db.Uuid
+  article         Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  summaryBrief    String   @map("summary_brief") @db.Text
+  summaryMedium   String?  @map("summary_medium") @db.Text
+  summaryDetailed String?  @map("summary_detailed") @db.Text
+  keyPoints       String[] @default([]) @map("key_points")
+  modelUsed       String   @default("gemini-2.0-flash") @map("model_used")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("article_summaries")
+}
+
+model EmailQueue {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject      String
+  htmlContent  String    @map("html_content") @db.Text
+  scheduledFor DateTime  @map("scheduled_for") @db.Timestamptz
+  sentAt       DateTime? @map("sent_at") @db.Timestamptz
+  status       String    @default("pending") // 'pending', 'sent', 'failed'
+  errorMessage String?   @map("error_message") @db.Text
+  retryCount   Int       @default(0) @map("retry_count")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([status, scheduledFor])
+  @@map("email_queue")
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  eventType String   @map("event_type") // 'email_opened', 'link_clicked', 'preferences_updated'
+  metadata  Json     @default("{}")
+  createdAt DateTime @db.Timestamptz @map("created_at") @default(now())
+
+  @@map("analytics_events")
+}

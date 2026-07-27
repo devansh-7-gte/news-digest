@@ -3,25 +3,140 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #000000;
+  --foreground: #ffffff;
+  --brand-lime: #C3FF2E;
 }
 
 body {
   color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #000000;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(195, 255, 46, 0.2);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(195, 255, 46, 0.5);
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
+
+  /* Grid Overlay Background */
+  .grid-overlay {
+    background-image: 
+      linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    background-size: 50px 50px;
+    background-position: center;
+  }
+
+  /* Glassmorphism Card Style */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  /* Colored Glow Orb backdrops matching theme */
+  .radial-glow-green {
+    background: radial-gradient(circle at center, rgba(195, 255, 46, 0.45) 0%, rgba(195, 255, 46, 0.12) 40%, transparent 75%);
+  }
+
+  .radial-glow-purple {
+    background: radial-gradient(circle at center, rgba(168, 85, 247, 0.45) 0%, rgba(168, 85, 247, 0.12) 40%, transparent 75%);
+  }
+
+  .radial-glow-blue {
+    background: radial-gradient(circle at center, rgba(59, 130, 246, 0.48) 0%, rgba(59, 130, 246, 0.14) 40%, transparent 75%);
+  }
+}
+
+/* ===== Premium SaaS Animations ===== */
+
+@keyframes aurora {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  25% {
+    background-position: 50% 100%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  75% {
+    background-position: 50% 0%;
+  }
+}
+
+.aurora-gradient {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 112, 243, 0.18) 0%,
+    rgba(0, 80, 200, 0.08) 25%,
+    transparent 50%,
+    rgba(0, 60, 180, 0.08) 75%,
+    rgba(0, 112, 243, 0.18) 100%
+  );
+  background-size: 400% 400%;
+  animation: aurora 18s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  25% { transform: translateY(-12px) translateX(5px); }
+  50% { transform: translateY(-4px) translateX(-8px); }
+  75% { transform: translateY(-16px) translateX(3px); }
+}
+
+.animate-float {
+  animation: float 8s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float 10s ease-in-out 2s infinite;
+}
+
+.animate-float-slow {
+  animation: float 14s ease-in-out 4s infinite;
+}
+
+.hero-spotlight {
+  background: radial-gradient(
+    ellipse 60% 50% at 50% 35%,
+    rgba(0, 112, 243, 0.3) 0%,
+    rgba(0, 80, 200, 0.08) 50%,
+    transparent 80%
+  );
+}
+
+.noise-overlay {
+  position: relative;
+}
+
+.noise-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.02;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  background-size: 128px 128px;
 }
