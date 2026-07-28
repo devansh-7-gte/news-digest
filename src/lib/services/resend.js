@@ -12,7 +12,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 export async function sendDigestEmail(to, subject, html) {
   try {
     const { data, error } = await resend.emails.send({
-      from: 'AI News Digest <digest@yourcompany.com>',
+      from: 'SwiftIQ <onboarding@resend.dev>',
       to,
       subject,
       html,
@@ -38,11 +38,11 @@ export async function sendDigestEmail(to, subject, html) {
  */
 export async function sendWelcomeEmail(to, userName) {
   const html = `
-    <h1>Welcome to AI News Digest, ${userName}!</h1>
+    <h1>Welcome to SwiftIQ, ${userName}!</h1>
     <p>Thank you for signing up. We're excited to help you stay informed.</p>
     <p>Your personalized news digests will be delivered based on your preferences.</p>
     <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/preferences">Manage your preferences</a></p>
   `;
 
-  return sendDigestEmail(to, 'Welcome to AI News Digest!', html);
+  return sendDigestEmail(to, 'Welcome to SwiftIQ!', html);
 }

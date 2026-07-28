@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-27T06:23:10Z",
+  "title": "Design System: AI News Digest",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Hyper Neon Lime",
+        "canonical": "#C3FF2E",
+        "tonalRamp": [
+          "#131a00",
+          "#283600",
+          "#516d00",
+          "#8bbb00",
+          "#c3ff2e",
+          "#d0ff59",
+          "#e0ff8d",
+          "#f3ffc8"
+        ]
+      },
+      "neutral-bg": {
+        "role": "neutral",
+        "displayName": "Pitch Black Space",
+        "canonical": "#000000",
+        "tonalRamp": [
+          "#000000",
+          "#050505",
+          "#0c0c0c",
+          "#171717",
+          "#262626",
+          "#404040",
+          "#737373",
+          "#a3a3a3"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display Title",
+        "purpose": "Hero and major header branding text."
+      },
+      "body": {
+        "displayName": "Body Text",
+        "purpose": "Main article summaries and description blocks."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "glow-pulse",
+        "value": "pulse 2s infinite ease-in-out",
+        "purpose": "Status indicator pulsing animation."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary action button used for high-priority CTA actions.",
+      "html": "<button class=\"ds-btn-primary\">CONFIRM ACTION</button>",
+      "css": ".ds-btn-primary { background: #C3FF2E; color: #000000; font-family: monospace; font-size: 11px; font-weight: 700; letter-spacing: 1px; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; transition: all 0.2s ease-in-out; } .ds-btn-primary:hover { opacity: 0.9; transform: scale(0.98); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Secondary actions or toggle selections.",
+      "html": "<button class=\"ds-btn-secondary\">CANCEL</button>",
+      "css": ".ds-btn-secondary { background: rgba(255, 255, 255, 0.02); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.05); font-family: monospace; font-size: 11px; font-weight: 700; letter-spacing: 1px; padding: 10px 20px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease-in-out; } .ds-btn-secondary:hover { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.15); }"
+    },
+    {
+      "name": "Glass Card",
+      "kind": "card",
+      "refersTo": "glass-card",
+      "description": "Information widget container overlaying background mesh gradient orbs.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">WIDGET HEADLINE</h3><p class=\"ds-card-text\">This is some telemetry metrics info shown in a high density container block.</p></div>",
+      "css": ".ds-card { background: rgba(255, 255, 255, 0.01); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 24px; backdrop-filter: blur(24px); } .ds-card-title { color: #ffffff; font-family: sans-serif; font-size: 16px; font-weight: 700; margin: 0 0 10px 0; } .ds-card-text { color: #A3A3A3; font-family: sans-serif; font-size: 13px; line-height: 1.5; margin: 0; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Terminal Orbit",
+    "overview": "A high-density cybernetic dark mode layout that emulates a mission control telemetry dashboard.",
+    "keyCharacteristics": [
+      "Pitch Black Foundation: Viewports remain rooted in complete dark space to maximize accent contrast.",
+      "Fluid Telemetry Orbs: Canvas composites radial blobs in neon lime, purple, and blue drifting dynamically.",
+      "Ultra-thin Hairline Accents: Clean structural grid alignments replacing heavy panels."
+    ],
+    "rules": [
+      {
+        "name": "The Contrast Rareness Rule",
+        "body": "Neon accents are restricted to ≤10% of any given screen area. Accent density conveys interactive priority.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ambient Rest Rule",
+        "body": "Glass components remain flat. Hover interactions invoke active borders rather than box-shadow offsets.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do wrap background canvas layers in absolute inset-0 overflow-hidden pointer-events-none to prevent page scroll expansion.",
+      "Do use uppercase monospace text for metadata labels and status tags to fit the terminal theme."
+    ],
+    "donts": [
+      "Don't use standard box-shadow drops. Depth is strictly defined by opacity layers and backdrop blur.",
+      "Don't use solid or bright gray background panels. Keep background blocks translucent to let mesh gradient orbs pass through."
+    ]
+  }
+}

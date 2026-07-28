@@ -12,8 +12,13 @@ import {
   FileText, 
   ArrowRight, 
   ExternalLink, 
-  SearchX 
+  SearchX,
+  Mail,
+  Send,
+  Check
 } from 'lucide-react';
+
+import { useAuth } from '@/hooks/useAuth';
 
 const FALLBACK_ARTICLES = [
   {
@@ -62,54 +67,63 @@ function withTimeout(promise, ms = 600) {
 }
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [stats, setStats] = useState({
-    subscriptions: 3,
-    digestsReceived: 12,
-    totalArticles: 48,
+    subscriptions: 0,
+    digestsReceived: 0,
+    totalArticles: 0,
   });
-  const [recentArticles, setRecentArticles] = useState(FALLBACK_ARTICLES);
-  const [loading, setLoading] = useState(false);
+  const [recentArticles, setRecentArticles] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState('');
+  const [sendingDigest, setSendingDigest] = useState(false);
+  const [digestMsg, setDigestMsg] = useState(null);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (user?.id) {
+      fetchDashboardData(user.id, user.email);
+    }
+  }, [user]);
 
-  async function fetchDashboardData() {
+  async function fetchDashboardData(userId, email) {
+    setLoading(true);
+    if (email) setUserEmail(email);
     try {
-      if (typeof window !== 'undefined') {
-        const email = localStorage.getItem('nd_user_email');
-        if (email) setUserEmail(email);
-      }
-
-      const resSubs = await withTimeout(
-        supabase.from('subscriptions').select('*').eq('is_active', true)
-      );
-
-      if (resSubs && !resSubs.timeout && resSubs.data) {
-        const subs = resSubs.data;
-        const subscribedDomains = subs.map((s) => s.domain) || [];
-        setStats((prev) => ({ ...prev, subscriptions: subs.length }));
-
-        if (subscribedDomains.length > 0) {
-          const resArts = await withTimeout(
-            supabase
-              .from('articles')
-              .select(`*, article_summaries(summary_brief)`)
-              .in('domain', subscribedDomains)
-              .order('published_at', { ascending: false })
-              .limit(5)
-          );
-
-          if (resArts && !resArts.timeout && resArts.data && resArts.data.length > 0) {
-            setRecentArticles(resArts.data);
-          }
-        }
+      const res = await fetch(`/api/dashboard?userId=${userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data.stats || { subscriptions: 0, digestsReceived: 0, totalArticles: 0 });
+        setRecentArticles(data.recentArticles || []);
       }
     } catch (e) {
-      console.warn('Dashboard data fetch timeout/warning:', e);
+      console.warn('Dashboard data fetch warning:', e);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleSendDigestNow() {
+    if (!user?.id) return;
+    setSendingDigest(true);
+    setDigestMsg(null);
+    try {
+      const res = await fetch('/api/email/send-digest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setDigestMsg({ type: 'success', text: `✓ Real digest sent to ${data.sentTo}!` });
+        // Refresh dashboard stats
+        fetchDashboardData(user.id, user.email);
+      } else {
+        setDigestMsg({ type: 'error', text: data.error || data.detail || 'Failed to dispatch digest' });
+      }
+    } catch (err) {
+      setDigestMsg({ type: 'error', text: 'Network connection error' });
+    } finally {
+      setSendingDigest(false);
     }
   }
 
@@ -147,8 +161,19 @@ export default function DashboardPage() {
             </h1>
 
             <p className="text-brand-grey text-sm mt-2 leading-relaxed">
-              Autonomous scraping and LLM agents are actively indexing market-moving stories. View real-time articles, manage subscriptions, or review past digests below.
+              Autonomous scraping and LLM agents are actively indexing market-moving stories. View real-time articles, manage subscriptions, or dispatch your digest below.
             </p>
+
+            {digestMsg && (
+              <div className={`mt-4 p-3 rounded border font-mono text-xs flex items-center gap-2 ${
+                digestMsg.type === 'success'
+                  ? 'bg-brand-lime/10 text-brand-lime border-brand-lime/30'
+                  : 'bg-red-500/10 text-red-400 border-red-500/30'
+              }`}>
+                {digestMsg.type === 'success' ? <Check className="w-4 h-4 shrink-0" /> : <span className="shrink-0 font-bold">✗</span>}
+                <span>{digestMsg.text}</span>
+              </div>
+            )}
 
             <div className="flex flex-wrap gap-3 mt-6">
               <Button href="/sources" variant="primary" className="text-xs font-mono tracking-wider">
@@ -159,6 +184,15 @@ export default function DashboardPage() {
               <Button href="/subscriptions" variant="secondary" className="text-xs font-mono tracking-wider">
                 <Newspaper className="w-3.5 h-3.5" />
                 <span>SUBSCRIPTIONS ({stats.subscriptions})</span>
+              </Button>
+              <Button 
+                onClick={handleSendDigestNow}
+                disabled={sendingDigest}
+                variant="secondary" 
+                className="text-xs font-mono tracking-wider border-brand-lime/40 text-brand-lime hover:bg-brand-lime/10"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>{sendingDigest ? 'DISPATCHING...' : 'SEND_DIGEST_NOW'}</span>
               </Button>
             </div>
           </div>

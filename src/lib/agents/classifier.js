@@ -1,6 +1,41 @@
 import { prisma } from '@/lib/services/db';
 import { classifyArticle } from '@/lib/services/gemini';
 
+const DOMAIN_KEYWORDS = {
+  technology: ['ai', 'tech', 'software', 'app', 'google', 'apple', 'microsoft', 'startup', 'cloud', 'cyber', 'data', 'robot', 'chip', 'gpu', 'semiconductor', 'code', 'developer', 'programming', 'openai', 'chatgpt', 'gemini', 'wired', 'techcrunch', 'etf'],
+  finance: ['stock', 'market', 'invest', 'bank', 'crypto', 'bitcoin', 'ethereum', 'dollar', 'economy', 'gdp', 'fed', 'interest rate', 'revenue', 'profit', 'ipo', 'wall street', 'nasdaq', 'dow', 'finance', 'trading', 'bond', 'inflation', 'earnings', 'credit card'],
+  health: ['health', 'medical', 'doctor', 'hospital', 'vaccine', 'virus', 'disease', 'drug', 'pharma', 'biotech', 'fda', 'clinical', 'patient', 'surgery', 'cancer', 'mental health', 'wellness', 'fitness', 'nutrition'],
+  politics: ['politic', 'election', 'president', 'congress', 'senate', 'parliament', 'government', 'policy', 'law', 'legislation', 'diplomat', 'war', 'military', 'sanction', 'nato', 'un', 'vote', 'democrat', 'republican', 'trump', 'biden'],
+  sports: ['sport', 'game', 'player', 'team', 'score', 'championship', 'league', 'nba', 'nfl', 'mlb', 'soccer', 'football', 'basketball', 'tennis', 'golf', 'coach', 'draft', 'espn', 'match', 'tournament', 'olympic']
+};
+
+function fallbackClassifyText(title, content, defaultDomain = 'technology') {
+  const text = `${title} ${content || ''}`.toLowerCase();
+  let bestDomain = defaultDomain || 'technology';
+  let bestScore = 0;
+
+  for (const [domain, keywords] of Object.entries(DOMAIN_KEYWORDS)) {
+    let score = 0;
+    for (const kw of keywords) {
+      if (text.includes(kw)) score++;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestDomain = domain;
+    }
+  }
+
+  const words = title.split(/\s+/).filter(w => w.length > 3).map(w => w.replace(/[^a-zA-Z]/g, '')).filter(Boolean);
+  const keywords = [...new Set(words)].slice(0, 5);
+
+  return {
+    domain: bestDomain,
+    subTopics: [bestDomain.charAt(0).toUpperCase() + bestDomain.slice(1)],
+    sentiment: 0.2,
+    keywords
+  };
+}
+
 /**
  * Run the classifier agent to process raw scraped articles and categorize them.
  * Processes unprocessed RawArticles in batches.
@@ -13,8 +48,9 @@ export async function runClassifierAgent(batchSize = 15) {
   // Get raw articles that haven't been processed yet
   const rawArticles = await prisma.rawArticle.findMany({
     where: { isProcessed: false },
+    include: { source: true },
     take: batchSize,
-    orderBy: { fetchedAt: 'asc' }
+    orderBy: { fetchedAt: 'desc' }
   });
 
   if (rawArticles.length === 0) {
@@ -29,21 +65,25 @@ export async function runClassifierAgent(batchSize = 15) {
     try {
       console.log(`[ClassifierAgent] Classifying: "${rawArticle.title}" (ID: ${rawArticle.id})`);
 
-      // Use body content for classification if available, fall back to title
       const contentToClassify = rawArticle.rawContent && rawArticle.rawContent.length > 50
-        ? rawArticle.rawContent
+        ? rawArticle.rawContent.slice(0, 400)
         : rawArticle.title;
 
-      // Call Gemini API to classify content
-      const classification = await classifyArticle(rawArticle.title, contentToClassify);
+      const sourceDomain = rawArticle.source?.domain || null;
 
-      // Validate classified domain, default to 'technology' if invalid/missing
+      let classification;
+      try {
+        classification = await classifyArticle(rawArticle.title, contentToClassify, sourceDomain);
+      } catch (geminiError) {
+        console.warn(`[ClassifierAgent] Gemini API unavailable (${geminiError.message}). Using offline fallback classification for "${rawArticle.title}"`);
+        classification = fallbackClassifyText(rawArticle.title, contentToClassify, sourceDomain);
+      }
+
       const validDomains = ['finance', 'technology', 'health', 'politics', 'sports'];
       const domain = classification.domain && validDomains.includes(classification.domain.toLowerCase())
         ? classification.domain.toLowerCase()
-        : 'technology';
+        : (sourceDomain || 'technology');
 
-      // Check if this URL is already registered in the processed articles table
       const existingArticle = await prisma.article.findUnique({
         where: { url: rawArticle.url }
       });
@@ -75,24 +115,23 @@ export async function runClassifierAgent(batchSize = 15) {
         console.log(`[ClassifierAgent] Created new processed article: ${article.id}`);
       }
 
-      // Mark raw article as processed
       await prisma.rawArticle.update({
         where: { id: rawArticle.id },
         data: { isProcessed: true }
       });
 
       processedArticles.push(article);
-
-      // Mild delay between API requests to avoid rate limits (1000ms)
-      await new Promise(resolve => setTimeout(resolve, 1000));
     } catch (error) {
-      console.error(`[ClassifierAgent] Failed to classify raw article ${rawArticle.id}:`, error.message);
-      
-      // Update raw article incrementing failures or just log it to keep pipeline moving.
-      // We do not mark it processed so it can retry later, but we skip to prevent lockups.
+      console.error(`[ClassifierAgent] Failed to process raw article ${rawArticle.id}:`, error.message);
+      // Mark as processed so broken articles don't block the queue forever
+      await prisma.rawArticle.update({
+        where: { id: rawArticle.id },
+        data: { isProcessed: true }
+      }).catch(() => {});
     }
   }
 
   console.log(`[ClassifierAgent] Classification cycle complete. Processed ${processedArticles.length}/${rawArticles.length} articles.`);
   return processedArticles;
 }
+

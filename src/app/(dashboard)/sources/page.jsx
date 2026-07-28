@@ -46,33 +46,12 @@ export default function SourcesPage() {
   async function fetchData() {
     setLoading(true);
     try {
-      const { data: sourcesData } = await supabase
-        .from('news_sources')
-        .select('*')
-        .order('name');
-      setNewsSources(sourcesData || []);
-
-      let query = supabase
-        .from('articles')
-        .select(`
-          *,
-          article_summaries (
-            summary_brief,
-            summary_medium,
-            summary_detailed,
-            key_points,
-            model_used
-          )
-        `)
-        .order('published_at', { ascending: false })
-        .limit(30);
-
-      if (selectedDomain !== 'all') {
-        query = query.eq('domain', selectedDomain);
+      const res = await fetch(`/api/sources?domain=${selectedDomain}`);
+      if (res.ok) {
+        const data = await res.json();
+        setNewsSources(data.newsSources || []);
+        setArticles(data.articles || []);
       }
-
-      const { data: articlesData } = await query;
-      setArticles(articlesData || []);
     } catch (e) {
       console.warn('Error fetching sources:', e);
     } finally {
@@ -278,6 +257,16 @@ function ArticleCard({ article, onOpenSummary }) {
 
 function SummaryModal({ article, onClose }) {
   const summaryObj = article.article_summaries?.[0] || {};
+
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl">

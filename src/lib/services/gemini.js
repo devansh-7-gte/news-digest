@@ -2,125 +2,102 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-/**
- * Classify an article into domain, topics, sentiment
- * @param {string} title - Article title
- * @param {string} content - Article content
- * @returns {Promise<Object>} Classification result
- */
-export async function classifyArticle(title, content) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-  
-  const prompt = `You are a news classification expert. Analyze this article and provide classification data.
+// Model fallback chain — tries in order, falls back on quota/rate limit errors
+const MODEL_CHAIN = ['gemini-2.0-flash', 'gemini-2.0-flash-lite'];
 
-Article Title: ${title}
-Article Content: ${content.slice(0, 2000)}
-
-Respond ONLY with a JSON object (no markdown, no explanations) in this exact format:
-{
-  "domain": "one of: finance, technology, health, politics, sports",
-  "subTopics": ["keyword1", "keyword2", "keyword3"],
-  "sentiment": 0.5,
-  "keywords": ["entity1", "entity2", "entity3"]
+async function generateWithFallback(prompt) {
+  let lastError;
+  for (const modelName of MODEL_CHAIN) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      return { text: result.response.text(), model: modelName };
+    } catch (err) {
+      lastError = err;
+      const isQuota =
+        err.message?.includes('429') ||
+        err.message?.includes('RESOURCE_EXHAUSTED') ||
+        err.message?.includes('quota');
+      if (isQuota && modelName !== MODEL_CHAIN[MODEL_CHAIN.length - 1]) {
+        console.warn(`[Gemini] ${modelName} quota hit, falling back...`);
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastError;
 }
 
-Rules:
-- sentiment is a number between -1 (very negative) and 1 (very positive)
-- subTopics are specific topics within the domain (max 3)
-- keywords are key entities mentioned (companies, people, places - max 5)
-`;
+/**
+ * Classify an article into domain, topics, sentiment.
+ * Cost-optimized: short prompt, 400-char content cap enforced by callers.
+ */
+export async function classifyArticle(title, content, sourceDomain = null) {
+  // Compact prompt with source category hint — fewer tokens, better accuracy
+  const sourceHint = sourceDomain ? `Source Category: ${sourceDomain}\n` : '';
+  const prompt = `Classify this news article. Reply ONLY with JSON, no markdown.
+
+${sourceHint}Title: ${title}
+Content: ${content.slice(0, 400)}
+
+JSON format:
+{"domain":"finance|technology|health|politics|sports","subTopics":["t1","t2"],"sentiment":0.0,"keywords":["k1","k2","k3"]}`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-    
-    // Remove markdown code blocks if present
+    const { text, model } = await generateWithFallback(prompt);
+    console.log(`[Gemini] Classified via ${model}`);
     const cleanText = text.replace(/```json\n?|\n?```/g, '').trim();
-    
     return JSON.parse(cleanText);
   } catch (error) {
-    console.error('Classification error:', error);
+    console.error('Classification error:', error.message);
     throw error;
   }
 }
 
 /**
- * Generate multi-tier summaries for an article
- * @param {string} title - Article title
- * @param {string} content - Article content
- * @returns {Promise<Object>} Summary result with brief, medium, detailed, and keyPoints
+ * Generate multi-tier summaries for an article.
+ * Cost-optimized: compact prompt, 500-char content cap enforced by callers.
  */
 export async function summarizeArticle(title, content) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-  
-  const prompt = `You are an expert news summarizer. Create three versions of a summary for this article.
+  // Compact prompt — fewer tokens = lower cost
+  const prompt = `Summarize this news article. Reply ONLY with JSON, no markdown.
 
-Article Title: ${title}
-Article Content: ${content}
+Title: ${title}
+Content: ${content.slice(0, 500)}
 
-Respond ONLY with a JSON object (no markdown, no explanations) in this exact format:
-{
-  "brief": "1-2 sentence summary capturing the absolute essence",
-  "medium": "3-4 sentence summary with main points and context",
-  "detailed": "1 paragraph comprehensive overview with key details",
-  "keyPoints": ["point 1", "point 2", "point 3", "point 4", "point 5"]
-}
-
-Rules:
-- Be factual and objective
-- Preserve important numbers and dates
-- Avoid speculation
-- Use clear, concise language
-- keyPoints should be 3-5 actionable takeaways
-`;
+JSON format:
+{"brief":"1-2 sentence essence","medium":"3-4 sentence overview","detailed":"full paragraph","keyPoints":["p1","p2","p3"]}`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-    
+    const { text, model } = await generateWithFallback(prompt);
+    console.log(`[Gemini] Summarized via ${model}`);
     const cleanText = text.replace(/```json\n?|\n?```/g, '').trim();
-    
     return JSON.parse(cleanText);
   } catch (error) {
-    console.error('Summarization error:', error);
+    console.error('Summarization error:', error.message);
     throw error;
   }
 }
 
 /**
- * Generate personalized digest introduction
- * @param {Array} articles - Array of article objects
- * @param {string} userName - User's name
- * @returns {Promise<string>} Personalized introduction
+ * Generate personalized digest introduction.
+ * Cost-optimized: uses only titles, no full summaries.
  */
 export async function generatePersonalizedDigest(articles, userName) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-  
-  const articlesText = articles.map((a, i) => 
-    `${i + 1}. [${a.domain.toUpperCase()}] ${a.title}\n   ${a.summary}`
-  ).join('\n\n');
-  
-  const prompt = `You are writing a personalized news digest for ${userName}.
+  // Use only titles to minimize token count
+  const topTitles = articles
+    .slice(0, 5)
+    .map((a, i) => `${i + 1}. [${a.domain}] ${a.title}`)
+    .join('\n');
 
-Here are today's top articles:
-
-${articlesText}
-
-Write a brief, engaging introduction (2-3 sentences) that:
-- Welcomes the reader
-- Highlights the most important or interesting story
-- Sets the tone for the digest
-
-Be conversational but professional. Make it personal.`;
+  const prompt = `Write a 2-sentence personalized news digest intro for ${userName}.
+Top stories:\n${topTitles}\nBe warm, concise, and highlight the most interesting story.`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text();
+    const { text } = await generateWithFallback(prompt);
+    return text;
   } catch (error) {
-    console.error('Digest generation error:', error);
+    console.error('Digest generation error:', error.message);
     return `Good morning, ${userName}! Here's your personalized news digest for today.`;
   }
 }

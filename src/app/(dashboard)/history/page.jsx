@@ -14,7 +14,10 @@ import {
   FileText 
 } from 'lucide-react';
 
+import { useAuth } from '@/hooks/useAuth';
+
 export default function HistoryPage() {
+  const { user } = useAuth();
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeDigest, setActiveDigest] = useState(null);
@@ -23,19 +26,21 @@ export default function HistoryPage() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    fetchHistoryData();
-  }, []);
+    if (user?.id) {
+      fetchHistoryData(user.id);
+    }
+  }, [user]);
 
-  async function fetchHistoryData() {
+  async function fetchHistoryData(userId) {
+    setLoading(true);
     try {
-      const { data } = await supabase
-        .from('email_queue')
-        .select('*')
-        .order('scheduled_for', { ascending: false });
-
-      if (data && data.length > 0) {
-        setHistory(data);
-        setActiveDigest(data[0]);
+      const res = await fetch(`/api/history?userId=${userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.length > 0) {
+          setHistory(data);
+          setActiveDigest(data[0]);
+        }
       }
     } catch (e) {
       console.warn('History error:', e);

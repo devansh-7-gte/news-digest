@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { runDigestGeneratorAgent } from '@/lib/agents/digest-generator';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
   // Validate request authorization header
   const authHeader = request.headers.get('authorization');

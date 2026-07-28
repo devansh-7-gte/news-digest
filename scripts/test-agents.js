@@ -24,14 +24,14 @@ async function main() {
     // 2. Classify raw articles with Gemini
     if (arg === 'classify' || arg === 'all') {
       console.log('\n--- 2. Running Classifier Agent ---');
-      const classified = await runClassifierAgent(5); // limit to 5 for fast testing
+      const classified = await runClassifierAgent(100);
       console.log(`Classifier completed. Processed ${classified.length} raw articles.`);
     }
 
     // 3. Summarize articles with Gemini
     if (arg === 'summarize' || arg === 'all') {
       console.log('\n--- 3. Running Summarizer Agent ---');
-      const summarized = await runSummarizerAgent(5); // limit to 5 for fast testing
+      const summarized = await runSummarizerAgent(100);
       console.log(`Summarizer completed. Summarized ${summarized.length} articles.`);
     }
 

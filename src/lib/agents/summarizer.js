@@ -1,13 +1,30 @@
 import { prisma } from '@/lib/services/db';
 import { summarizeArticle } from '@/lib/services/gemini';
 
+function fallbackSummarizeText(title, content) {
+  const text = (content && content.length > 50) ? content.trim() : title;
+  const sentences = text.split(/(?<=[.!?])\s+/).filter(s => s.length > 10);
+  
+  const brief = sentences[0] || title;
+  const medium = sentences.slice(0, 3).join(' ') || title;
+  const detailed = sentences.slice(0, 5).join(' ') || title;
+  const keyPoints = sentences.slice(0, 3).map(s => s.replace(/^[•\-\*\s]+/, '').trim());
+
+  return {
+    brief: brief.substring(0, 200),
+    medium: medium.substring(0, 400),
+    detailed: detailed.substring(0, 800),
+    keyPoints: keyPoints.length > 0 ? keyPoints : [title]
+  };
+}
+
 /**
  * Run the summarizer agent to generate multi-tier summaries for classified articles.
  * Processes articles in batches.
- * @param {number} batchSize - Number of articles to summarize in this run (default: 10)
+ * @param {number} batchSize - Number of articles to summarize in this run (default: 15)
  * @returns {Promise<Array>} Array of successfully summarized ArticleSummary records
  */
-export async function runSummarizerAgent(batchSize = 10) {
+export async function runSummarizerAgent(batchSize = 15) {
   console.log('[SummarizerAgent] Starting summarization cycle...');
 
   // Get articles that do not have any summaries yet
@@ -19,7 +36,7 @@ export async function runSummarizerAgent(batchSize = 10) {
       rawArticle: true
     },
     take: batchSize,
-    orderBy: { createdAt: 'asc' }
+    orderBy: { createdAt: 'desc' }
   });
 
   if (articles.length === 0) {
@@ -34,25 +51,30 @@ export async function runSummarizerAgent(batchSize = 10) {
     try {
       console.log(`[SummarizerAgent] Summarizing: "${article.title}" (ID: ${article.id})`);
 
-      // Retrieve content from original raw article, fallback to title
       const contentToSummarize = article.rawArticle?.rawContent && article.rawArticle.rawContent.length > 50
-        ? article.rawArticle.rawContent
+        ? article.rawArticle.rawContent.slice(0, 500)
         : article.title;
 
-      // Call Gemini API to generate multi-tier summaries
-      const summaryResult = await summarizeArticle(article.title, contentToSummarize);
+      let summaryResult;
+      let modelUsed = 'gemini-2.0-flash';
+      try {
+        summaryResult = await summarizeArticle(article.title, contentToSummarize);
+      } catch (geminiError) {
+        console.warn(`[SummarizerAgent] Gemini API unavailable (${geminiError.message}). Using offline extractive summary fallback for "${article.title}"`);
+        summaryResult = fallbackSummarizeText(article.title, contentToSummarize);
+        modelUsed = 'extractive-fallback';
+      }
 
-      // Check if a summary already exists for this article (safety check)
       const existingSummary = await prisma.articleSummary.findUnique({
         where: { articleId: article.id }
       });
 
       const summaryData = {
         summaryBrief: summaryResult.brief || article.title,
-        summaryMedium: summaryResult.medium || '',
-        summaryDetailed: summaryResult.detailed || '',
-        keyPoints: summaryResult.keyPoints || [],
-        modelUsed: 'gemini-2.0-flash'
+        summaryMedium: summaryResult.medium || summaryResult.brief || article.title,
+        summaryDetailed: summaryResult.detailed || summaryResult.medium || article.title,
+        keyPoints: summaryResult.keyPoints || [article.title],
+        modelUsed: modelUsed
       };
 
       let articleSummary;
@@ -74,9 +96,6 @@ export async function runSummarizerAgent(batchSize = 10) {
       }
 
       generatedSummaries.push(articleSummary);
-
-      // Mild delay between API requests to avoid rate limits (1000ms)
-      await new Promise(resolve => setTimeout(resolve, 1000));
     } catch (error) {
       console.error(`[SummarizerAgent] Failed to summarize article ${article.id}:`, error.message);
     }
@@ -85,3 +104,4 @@ export async function runSummarizerAgent(batchSize = 10) {
   console.log(`[SummarizerAgent] Summarization cycle complete. Generated ${generatedSummaries.length}/${articles.length} summaries.`);
   return generatedSummaries;
 }
+

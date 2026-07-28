@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { runEmailSenderAgent } from '@/lib/agents/email-sender';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
   // Validate request authorization header
   const authHeader = request.headers.get('authorization');

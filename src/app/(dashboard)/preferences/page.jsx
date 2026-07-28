@@ -10,10 +10,15 @@ import {
   Globe, 
   Check, 
   FileText, 
-  Save 
+  Save,
+  Mail,
+  Send,
 } from 'lucide-react';
 
+import { useAuth } from '@/hooks/useAuth';
+
 export default function PreferencesPage() {
+  const { user } = useAuth();
   const [preferences, setPreferences] = useState({
     digest_frequency: 'daily',
     digest_time: '08:00:00',
@@ -24,39 +29,34 @@ export default function PreferencesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
+  const [testEmail, setTestEmail] = useState('devanshlalwani005@gmail.com');
+  const [sendingTest, setSendingTest] = useState(false);
+  const [testMessage, setTestMessage] = useState(null);
 
   useEffect(() => {
-    initializePage();
-  }, []);
-
-  async function initializePage() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-        await fetchPreferences(user.id);
-      }
-    } catch (e) {
-      console.warn('Prefs init warning:', e);
-    } finally {
-      setLoading(false);
+    if (user?.id) {
+      setUserId(user.id);
+      fetchPreferences(user.id);
     }
-  }
+  }, [user]);
 
   async function fetchPreferences(uid) {
-    const { data } = await supabase
-      .from('user_preferences')
-      .select('*')
-      .eq('user_id', uid)
-      .single();
-
-    if (data) {
-      setPreferences({
-        digest_frequency: data.digest_frequency || 'daily',
-        digest_time: data.digest_time || '08:00:00',
-        summary_length: data.summary_length || 'medium',
-        timezone: data.timezone || 'UTC',
-      });
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/preferences?userId=${uid}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPreferences({
+          digest_frequency: data.digest_frequency || 'daily',
+          digest_time: data.digest_time || '08:00:00',
+          summary_length: data.summary_length || 'medium',
+          timezone: data.timezone || 'UTC',
+        });
+      }
+    } catch (e) {
+      console.warn('Prefs fetch warning:', e);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -67,16 +67,51 @@ export default function PreferencesPage() {
 
     try {
       if (userId) {
-        await supabase
-          .from('user_preferences')
-          .update(preferences)
-          .eq('user_id', userId);
+        const res = await fetch('/api/preferences', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId,
+            ...preferences,
+          }),
+        });
+        if (res.ok) {
+          setMessage({ type: 'success', text: 'PREFERENCES_SAVED_SUCCESSFULLY' });
+        } else {
+          setMessage({ type: 'error', text: 'FAILED_TO_SAVE_PREFERENCES' });
+        }
       }
-      setMessage({ type: 'success', text: 'PREFERENCES_SAVED_SUCCESSFULLY' });
     } catch (err) {
       setMessage({ type: 'error', text: 'FAILED_TO_SAVE_PREFERENCES' });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSendTestEmail(e) {
+    e.preventDefault();
+    if (!testEmail) return;
+    setSendingTest(true);
+    setTestMessage(null);
+    try {
+      const res = await fetch('/api/email/send-sample', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: testEmail, userId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setTestMessage({ type: 'success', text: `✓ Sample digest sent to ${data.sentTo} (${data.articlesIncluded} articles)` });
+        setTestEmail('');
+      } else {
+        setTestMessage({ type: 'error', text: data.error || data.detail || 'Send failed' });
+      }
+    } catch (err) {
+      setTestMessage({ type: 'error', text: 'Network error — check dev server' });
+    } finally {
+      setSendingTest(false);
     }
   }
 
@@ -241,6 +276,54 @@ export default function PreferencesPage() {
           </div>
 
         </form>
+
+        {/* ── Test Email Section ── */}
+        <div className="border border-brand-border bg-white/[0.01] rounded-xl p-8 space-y-4 glass-card shadow-2xl font-mono text-xs">
+          <div className="flex items-center gap-2 mb-2">
+            <Mail className="w-4 h-4 text-brand-lime" />
+            <span className="text-white font-bold tracking-wider uppercase text-sm">Send Test Digest Email</span>
+          </div>
+          <p className="text-brand-grey text-[11px] leading-relaxed">
+            Send a sample digest to preview how it looks. Uses live articles from the database.
+          </p>
+          <p className="text-yellow-500/70 text-[10px] font-mono leading-relaxed">
+            ⚠ RESEND_FREE_TIER: Can only send to your verified account email. To send to any address, verify a domain at resend.com/domains.
+          </p>
+
+          {testMessage && (
+            <div className={`p-3 rounded border font-mono text-xs flex items-start gap-2 ${
+              testMessage.type === 'success'
+                ? 'bg-brand-lime/10 text-brand-lime border-brand-lime/30'
+                : 'bg-red-500/10 text-red-400 border-red-500/30'
+            }`}>
+              {testMessage.type === 'success' ? <Check className="w-3.5 h-3.5 mt-0.5 shrink-0" /> : <span className="shrink-0">✗</span>}
+              <span>{testMessage.text}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSendTestEmail} className="flex gap-3 items-end">
+            <div className="flex-1">
+              <label className="block text-brand-grey tracking-wider uppercase text-[10px] mb-1.5">Recipient Email</label>
+              <input
+                type="email"
+                required
+                value={testEmail}
+                onChange={e => setTestEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full bg-white/[0.02] border border-brand-border rounded px-4 py-2.5 text-white text-xs font-mono focus:outline-none focus:border-brand-lime/50 placeholder-brand-grey/40"
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={sendingTest || !testEmail}
+              variant="primary"
+              className="text-xs font-mono tracking-wider px-5 py-2.5 whitespace-nowrap"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>{sendingTest ? 'SENDING...' : 'SEND_TEST'}</span>
+            </Button>
+          </form>
+        </div>
 
       </div>
     </DashboardLayout>

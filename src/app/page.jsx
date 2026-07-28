@@ -11,6 +11,7 @@ import FAQAccordion from '@/components/ui/FAQAccordion';
 import MeshGradient from '@/components/ui/MeshGradient';
 import ScrollReveal from '@/components/ui/ScrollReveal';
 import { useAuth } from '@/hooks/useAuth';
+import SwiftIQLogo from '@/components/ui/SwiftIQLogo';
 
 
 /* ─────────────── Floating Particle Dots ─────────────── */
@@ -155,12 +156,9 @@ export default function Home() {
 
       {/* ───── Navbar ───── */}
       <header className="sticky top-0 z-50 w-full border-b border-brand-border bg-brand-dark/60 backdrop-blur-xl">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 select-none">
-            <span className="w-2.5 h-2.5 rounded-full bg-brand-lime animate-pulse" />
-            <span className="font-mono text-lg font-bold tracking-wider text-white">
-              AI_NEWS_DIGEST
-            </span>
+        <div className="container mx-auto px-4 h-20 flex items-center justify-between">
+          <Link href="/">
+            <SwiftIQLogo iconSize="w-11 h-11" textSize="text-2xl" />
           </Link>
 
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-brand-grey">
@@ -490,7 +488,7 @@ export default function Home() {
           <div className="container mx-auto px-4 pt-8 border-t border-brand-border/40 flex flex-col sm:flex-row items-center justify-between gap-4 text-brand-grey/50">
             <div className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-brand-lime animate-pulse" />
-              <span>© 2026 AI_NEWS_DIGEST. ALL SYSTEMS FUNCTIONAL.</span>
+              <span>© 2026 SWIFTIQ // ALL SYSTEMS OPERATIONAL.</span>
             </div>
             <div className="flex gap-4">
               <a href="#" className="hover:text-white transition-colors">GITHUB</a>

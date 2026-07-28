@@ -19,14 +19,14 @@ export default function DigestEmail({ userName, introduction, articles = [] }) {
   return (
     <Html>
       <Head />
-      <Preview>AI news digest for {userName} - fresh tech, finance, and science updates</Preview>
+      <Preview>SwiftIQ digest for {userName} - fresh tech, finance, and science updates</Preview>
       <Body style={mainBg}>
         <Container style={container}>
           {/* Brand Banner Header */}
           <Section style={headerSection}>
             <div style={logoWrapper}>
-              <span style={logoDot} />
-              <span style={logoText}>AI_NEWS_DIGEST</span>
+              <img src={`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/logo.png`} width="32" height="32" alt="SwiftIQ" style={{ borderRadius: '6px', marginRight: '10px', verticalAlign: 'middle' }} />
+              <span style={logoText}>Swift<span style={{ color: '#C3FF2E' }}>IQ</span></span>
             </div>
             <Heading style={h1}>Good morning, {userName} 🌅</Heading>
             <Text style={introText}>{introduction}</Text>
@@ -79,7 +79,7 @@ export default function DigestEmail({ userName, introduction, articles = [] }) {
               </Link>
             </Text>
             <Text style={copyrightText}>
-              AUTONOMOUS SCAPING AGENT v1.0 // POWERED BY GEMINI 2.0 FLASH
+              AUTONOMOUS SCRAPING AGENT v1.0 // POWERED BY SWIFTIQ & GEMINI 2.0 FLASH
             </Text>
           </Section>
         </Container>

@@ -9,6 +9,7 @@ import GridBackground from '@/components/ui/GridBackground';
 import GlowOrb from '@/components/ui/GlowOrb';
 import MeshGradient from '@/components/ui/MeshGradient';
 import Button from '@/components/ui/Button';
+import SwiftIQLogo from '@/components/ui/SwiftIQLogo';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -16,7 +17,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const router = useRouter();
-  const { user, loading: authLoading, signIn } = useAuth();
+  const { user, loading: authLoading, signIn, signOut } = useAuth();
 
   useEffect(() => {
     if (user && !authLoading) {
@@ -59,12 +60,9 @@ export default function LoginPage() {
 
       {/* Navbar Header */}
       <header className="sticky top-0 z-50 w-full border-b border-brand-border bg-brand-dark/60 backdrop-blur-xl">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 select-none">
-            <span className="w-2.5 h-2.5 rounded-full bg-brand-lime animate-pulse" />
-            <span className="font-mono text-lg font-bold tracking-wider text-white">
-              AI_NEWS_DIGEST
-            </span>
+        <div className="container mx-auto px-4 h-20 flex items-center justify-between">
+          <Link href="/">
+            <SwiftIQLogo iconSize="w-11 h-11" textSize="text-2xl" />
           </Link>
         </div>
       </header>
@@ -85,7 +83,7 @@ export default function LoginPage() {
               Welcome back
             </h2>
             <p className="mt-2 text-center text-sm text-brand-grey">
-              Sign in to your AI News Digest account
+              Sign in to your SwiftIQ account
             </p>
           </div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -20,6 +20,7 @@ import GridBackground from '@/components/ui/GridBackground';
 import MeshGradient from '@/components/ui/MeshGradient';
 import GlowOrb from '@/components/ui/GlowOrb';
 import Button from '@/components/ui/Button';
+import SwiftIQLogo from '@/components/ui/SwiftIQLogo';
 
 export default function DashboardLayout({ children }) {
   const { user, signOut, loading } = useAuth();
@@ -40,7 +41,13 @@ export default function DashboardLayout({ children }) {
     { name: 'PREFERENCES', href: '/preferences', Icon: Sliders },
   ];
 
-  if (loading) {
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-brand-dark font-mono text-white noise-overlay">
         <div className="flex flex-col items-center gap-3">
@@ -70,16 +77,11 @@ export default function DashboardLayout({ children }) {
 
       {/* Navbar Header */}
       <header className="sticky top-0 z-50 w-full border-b border-brand-border bg-brand-dark/70 backdrop-blur-xl">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="container mx-auto px-4 h-20 flex items-center justify-between">
           
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 select-none">
-            <div className="w-8 h-8 rounded-lg bg-brand-lime/10 border border-brand-lime/30 flex items-center justify-center text-brand-lime">
-              <Zap className="w-4 h-4" />
-            </div>
-            <span className="font-mono text-lg font-bold tracking-wider text-white">
-              AI_NEWS_DIGEST
-            </span>
+          <Link href="/">
+            <SwiftIQLogo iconSize="w-11 h-11" textSize="text-2xl" />
           </Link>
 
           {/* Desktop Navigation Links */}
@@ -175,7 +177,7 @@ export default function DashboardLayout({ children }) {
         <div className="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-brand-lime animate-pulse" />
-            <span>AI_NEWS_DIGEST // ALL SYSTEMS OPERATIONAL</span>
+            <span>SWIFTIQ // ALL SYSTEMS OPERATIONAL</span>
           </div>
           <div className="flex gap-4">
             <Link href="/dashboard" className="hover:text-white transition-colors">DASHBOARD</Link>

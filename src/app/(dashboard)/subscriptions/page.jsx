@@ -16,6 +16,8 @@ import {
   SlidersHorizontal 
 } from 'lucide-react';
 
+import { useAuth } from '@/hooks/useAuth';
+
 const DOMAINS = [
   {
     id: 'technology',
@@ -55,21 +57,26 @@ const DOMAINS = [
 ];
 
 export default function SubscriptionsPage() {
+  const { user } = useAuth();
   const [subscriptions, setSubscriptions] = useState([]);
   const [userId, setUserId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savingDomain, setSavingDomain] = useState(null);
 
   useEffect(() => {
-    initializePage();
-  }, []);
+    if (user?.id) {
+      setUserId(user.id);
+      fetchSubscriptions(user.id);
+    }
+  }, [user]);
 
-  async function initializePage() {
+  async function fetchSubscriptions(uid) {
+    setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-        await fetchSubscriptions(user.id);
+      const res = await fetch(`/api/subscriptions?userId=${uid}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSubscriptions(data || []);
       }
     } catch (e) {
       console.warn('Subscription load warning:', e);
@@ -78,34 +85,25 @@ export default function SubscriptionsPage() {
     }
   }
 
-  async function fetchSubscriptions(uid) {
-    const { data } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('user_id', uid);
-    setSubscriptions(data || []);
-  }
-
   async function toggleSubscription(domainId) {
     setSavingDomain(domainId);
     try {
       const existing = subscriptions.find((s) => s.domain === domainId);
-      if (existing) {
-        await supabase
-          .from('subscriptions')
-          .update({ is_active: !existing.is_active })
-          .eq('id', existing.id);
-      } else {
-        await supabase
-          .from('subscriptions')
-          .insert({
-            user_id: userId || 'demo-user-id',
-            domain: domainId,
-            sub_topics: [],
-            is_active: true,
-          });
+      const res = await fetch('/api/subscriptions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          domain: domainId,
+          action: 'toggle_domain',
+          isActive: existing ? !existing.is_active : true,
+        }),
+      });
+      if (res.ok) {
+        await fetchSubscriptions(userId);
       }
-      if (userId) await fetchSubscriptions(userId);
     } catch (e) {
       console.error(e);
     } finally {
@@ -124,11 +122,21 @@ export default function SubscriptionsPage() {
 
     setSavingDomain(domainId);
     try {
-      await supabase
-        .from('subscriptions')
-        .update({ sub_topics: updatedTopics })
-        .eq('id', existing.id);
-      if (userId) await fetchSubscriptions(userId);
+      const res = await fetch('/api/subscriptions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          domain: domainId,
+          action: 'toggle_subtopic',
+          subTopics: updatedTopics,
+        }),
+      });
+      if (res.ok) {
+        await fetchSubscriptions(userId);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -241,7 +249,8 @@ export default function SubscriptionsPage() {
                             <button
                               key={topic}
                               onClick={() => toggleSubTopic(domain.id, topic)}
-                              className={`px-3 py-1 rounded border text-[11px] transition-colors flex items-center gap-1 ${
+                              disabled={isSaving}
+                              className={`px-3 py-1 rounded border text-[10px] transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed ${
                                 isTopicSelected
                                   ? 'bg-brand-lime/20 text-brand-lime border-brand-lime/50'
                                   : 'bg-white/[0.02] text-brand-grey border-brand-border hover:text-white'
