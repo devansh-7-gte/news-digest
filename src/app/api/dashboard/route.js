@@ -20,9 +20,10 @@ export async function GET(request) {
     const subscribedDomains = subs.map((s) => s.domain) || [];
 
     // Build domain filter — if no subscriptions, show all articles
-    const domainFilter = subscribedDomains.length > 0
-      ? { domain: { in: subscribedDomains } }
-      : {};
+    const domainFilter = {
+      summaries: { isNot: null },
+      ...(subscribedDomains.length > 0 ? { domain: { in: subscribedDomains } } : {})
+    };
 
     // Count digests received from email queue
     const digestsCount = await prisma.emailQueue.count({
@@ -34,15 +35,15 @@ export async function GET(request) {
       where: domainFilter,
     });
 
-    // Get 15 most recent articles for subscribed domains (or all)
+    // Get 15 most recent articles with summaries
     const articles = await prisma.article.findMany({
       where: domainFilter,
       include: {
         summaries: true,
       },
       orderBy: [
-        { publishedAt: 'desc' },
         { createdAt: 'desc' },
+        { publishedAt: 'desc' },
       ],
       take: 15,
     });

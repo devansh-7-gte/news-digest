@@ -5,6 +5,8 @@ loadEnvConfig(projectDir);
 import { runScraperAgent } from '@/lib/agents/scraper';
 import { runClassifierAgent } from '@/lib/agents/classifier';
 import { runSummarizerAgent } from '@/lib/agents/summarizer';
+import { runChunkerAgent } from '@/lib/agents/chunker';
+import { runEmbedderAgent } from '@/lib/agents/embedder';
 import { runDigestGeneratorAgent } from '@/lib/agents/digest-generator';
 import { runEmailSenderAgent } from '@/lib/agents/email-sender';
 import { prisma } from '@/lib/services/db';
@@ -33,6 +35,21 @@ async function main() {
       console.log('\n--- 3. Running Summarizer Agent ---');
       const summarized = await runSummarizerAgent(100);
       console.log(`Summarizer completed. Summarized ${summarized.length} articles.`);
+    }
+
+    // 3.5 Chunk summarized articles for the RAG layer (opt-in only, not part of `all`
+    // since it's a new stage on top of the original 5-stage pipeline)
+    if (arg === 'chunk') {
+      console.log('\n--- 3.5 Running Chunker Agent ---');
+      const { articlesProcessed, chunksCreated } = await runChunkerAgent(15);
+      console.log(`Chunker completed. Chunked ${articlesProcessed} articles into ${chunksCreated} chunks.`);
+    }
+
+    // 3.6 Embed chunked content for the RAG layer (opt-in only, not part of `all`)
+    if (arg === 'embed') {
+      console.log('\n--- 3.6 Running Embedder Agent ---');
+      const { chunksEmbedded } = await runEmbedderAgent(100);
+      console.log(`Embedder completed. Embedded ${chunksEmbedded} chunks.`);
     }
 
     // 4. Generate user digests and queue them

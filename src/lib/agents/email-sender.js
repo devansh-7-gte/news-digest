@@ -60,11 +60,24 @@ export async function runEmailSenderAgent(batchSize = 10) {
       }
 
       // Send email content via Resend
-      const sendResult = await sendDigestEmail(
-        email.user.email,
+      let targetRecipient = email.user.email;
+      let sendResult = await sendDigestEmail(
+        targetRecipient,
         email.subject,
         email.htmlContent
       );
+
+      // Resend free-tier fallback handling: if recipient is rejected because of unverified domain in free plan,
+      // fallback to sending to the owner's verified email address (devanshlalwani005@gmail.com)
+      if (!sendResult.success && sendResult.error?.includes('testing email address')) {
+        const verifiedEmail = process.env.RESEND_VERIFIED_EMAIL || 'devanshlalwani005@gmail.com';
+        console.warn(`[EmailSender] Recipient ${targetRecipient} rejected by Resend free tier. Rerouting to verified email ${verifiedEmail}...`);
+        sendResult = await sendDigestEmail(
+          verifiedEmail,
+          `[REROUTED] ${email.subject}`,
+          email.htmlContent
+        );
+      }
 
       if (sendResult.success) {
         const updated = await prisma.emailQueue.update({

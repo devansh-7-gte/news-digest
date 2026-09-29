@@ -1,6 +1,6 @@
 /**
  * Local Cron Runner for Development
- * Automatically triggers the 5 cron endpoints on their configured intervals
+ * Automatically triggers all 5 cron endpoints on their configured intervals
  * using the local CRON_SECRET header.
  * 
  * Usage: node scripts/local-cron-scheduler.mjs
@@ -49,9 +49,25 @@ async function triggerCron(name, path) {
     } else {
       console.log(`[${now}] ✗ ${name} Failed (${res.status}):`, JSON.stringify(data));
     }
+    return data;
   } catch (err) {
     console.error(`[${now}] ✗ ${name} Error:`, err.message);
+    return null;
   }
+}
+
+async function runInitialPipeline() {
+  console.log('🚀 Running initial full pipeline sequence...\n');
+  await triggerCron('Scrape News', '/api/cron/scrape-news');
+  await new Promise(r => setTimeout(r, 2000));
+  await triggerCron('Classify Articles', '/api/cron/classify-articles');
+  await new Promise(r => setTimeout(r, 2000));
+  await triggerCron('Summarize Articles', '/api/cron/summarize-articles');
+  await new Promise(r => setTimeout(r, 2000));
+  await triggerCron('Generate Digests', '/api/cron/generate-digests');
+  await new Promise(r => setTimeout(r, 2000));
+  await triggerCron('Send Emails', '/api/cron/send-emails');
+  console.log('\n✨ Initial pipeline sweep complete. Entering scheduled intervals...\n');
 }
 
 console.log('====================================================');
@@ -65,10 +81,10 @@ console.log('  - Generate Digests:    Every 15 minutes');
 console.log('  - Send Emails:         Every 2 minutes');
 console.log('====================================================\n');
 
-// Trigger initial cycle
-triggerCron('Scrape News', '/api/cron/scrape-news');
+// Run complete initial pipeline sweep
+runInitialPipeline();
 
-// Set intervals
+// Set recurring intervals
 setInterval(() => triggerCron('Scrape News', '/api/cron/scrape-news'), 10 * 60 * 1000);
 setInterval(() => triggerCron('Classify Articles', '/api/cron/classify-articles'), 5 * 60 * 1000);
 setInterval(() => triggerCron('Summarize Articles', '/api/cron/summarize-articles'), 5 * 60 * 1000);

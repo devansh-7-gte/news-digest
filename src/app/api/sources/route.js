@@ -25,8 +25,10 @@ export async function GET(request) {
       error_count: s.errorCount,
     }));
 
-    // Build articles query
-    const where = {};
+    // Build articles query — prioritize articles that have summaries
+    const where = {
+      summaries: { isNot: null },
+    };
     if (domain !== 'all') {
       where.domain = domain;
     }
@@ -37,10 +39,10 @@ export async function GET(request) {
         summaries: true,
       },
       orderBy: [
-        { publishedAt: 'desc' },
         { createdAt: 'desc' },
+        { publishedAt: 'desc' },
       ],
-      take: 30,
+      take: 35,
     });
 
     const formattedArticles = articles.map((a) => ({
